@@ -1,0 +1,1 @@
+work from my studies in Politecnico di Torino, I hope you don't think this is actually good code or that you should be copying this from me cause that'd be the blind leading the blind brother, go ask chatgpt or some shi
