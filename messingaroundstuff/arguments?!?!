@@ -1,0 +1,15 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char *argv[]) {
+	FILE *fp1, *fp2;
+	if (argc!=3) {
+		printf("Error: program was not executed with required arguments\n");
+		return 1;
+	}
+	int num1 = atoi(argv[1]);
+	int num2 = atoi(argv[2]);
+	int sum = num1 + num2;
+	printf("sum of the 2 numbers: %d", sum);
+	return 0;
+}
