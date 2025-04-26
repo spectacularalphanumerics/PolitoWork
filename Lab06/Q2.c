@@ -2,15 +2,17 @@
 #include <ctype.h>
 #include <string.h>
 
-// Maximum number of sequences to process
+/*  defining:
+ *  max number of sequences to process
+ *  max length of each sequence (+1 for null terminator)
+ *  max number of words to extract from text
+ *  max length of each word (+1 for null terminator)
+ *  max length of each line in input files
+ */
 #define MAX_SEQUENCES 20
-// Maximum length of each sequence (+1 for null terminator)
 #define MAX_SEQ_LEN 5
-// Maximum number of words to extract from text
 #define MAX_WORDS 1000
-// Maximum length of each word (+1 for null terminator)
 #define MAX_WORD_LEN 25
-// Maximum length of each line in input files
 #define MAX_LINE_LEN 200
 
 /**
@@ -44,8 +46,8 @@ int main() {
 
     // Read number of sequences from first line
     int num_sequences;
-    fscanf(seq_file, "%d", &num_sequences);
-    fgetc(seq_file); // consume newline after the number
+    fscanf(seq_file, "%d\n", &num_sequences);
+
 
     // Enforce maximum sequences limit
     if (num_sequences > MAX_SEQUENCES) {
@@ -69,8 +71,8 @@ int main() {
     /* ==================== TEXT PROCESSING ==================== */
 
     // Open the text file to search through
-    FILE *text_file = fopen("text.txt", "r");
-    if (text_file == NULL) {
+    FILE *fin = fopen("text.txt", "r");
+    if (fin == NULL) {
         perror("Error opening text.txt");
         return 1;
     }
@@ -81,7 +83,7 @@ int main() {
     char line[MAX_LINE_LEN + 1];
 
     // Read text file line by line until EOF or word limit reached
-    while (fgets(line, MAX_LINE_LEN + 1, text_file) && word_count < MAX_WORDS) {
+    while (fgets(line, MAX_LINE_LEN + 1, fin) && word_count < MAX_WORDS) {
         int i = 0;
         // Process each character in the line
         while (line[i] != '\0' && word_count < MAX_WORDS) {
@@ -105,7 +107,7 @@ int main() {
             word_count++;
         }
     }
-    fclose(text_file);
+    fclose(fin);
 
     /* ==================== SEQUENCE MATCHING ==================== */
 
