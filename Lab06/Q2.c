@@ -1,128 +1,182 @@
-//    THIS CODE IS BROKEN AND DOES NOT WORK, GIVING UP FOR NOW
-
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 
-#define MAX_WORD_LENGTH 25
-#define MAX_SEQUENCE_LENGTH 5
-#define MAX_WORDS_TO_PRINT 10
+// Maximum number of sequences to process
+#define MAX_SEQUENCES 20
+// Maximum length of each sequence (+1 for null terminator)
+#define MAX_SEQ_LEN 5
+// Maximum number of words to extract from text
+#define MAX_WORDS 1000
+// Maximum length of each word (+1 for null terminator)
+#define MAX_WORD_LEN 25
+// Maximum length of each line in input files
+#define MAX_LINE_LEN 200
 
-// Function to check if a word contains the sequence (case insensitive)
-int contains_sequence(const char *word, const char *sequence) {
-    char word_lower[MAX_WORD_LENGTH + 1], sequence_lower[MAX_SEQUENCE_LENGTH + 1];
-
-    // Convert word to lowercase
-    for (int i = 0; word[i] != '\0'; i++) {
-        word_lower[i] = tolower(word[i]);
+/**
+ * Converts a string to lowercase in place
+ * @param str The string to convert
+ */
+void to_lower_case(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = tolower(str[i]);
     }
-    word_lower[strlen(word)] = '\0';
-
-    // Convert sequence to lowercase
-    for (int i = 0; sequence[i] != '\0'; i++) {
-        sequence_lower[i] = tolower(sequence[i]);
-    }
-    sequence_lower[strlen(sequence)] = '\0';
-
-    // Check if sequence exists in the word
-    if (strstr(word_lower, sequence_lower) != NULL) {
-        return 1;
-    }
-    return 0;
 }
 
-// Function to extract words from a line and check for sequences
-void process_line(char *line, const char **sequences, int num_sequences, int *word_count) {
-    char word[MAX_WORD_LENGTH + 1];
-    int word_len = 0;
-    int sequence_found[MAX_SEQUENCE_LENGTH] = {0};
+/**
+ * Checks if a character is valid for a word (alphanumeric)
+ * @param c The character to check
+ * @return 1 if alphanumeric, 0 otherwise
+ */
+int is_word_char(char c) {
+    return isalnum(c);
+}
 
-    // Debugging: Print the entire line being processed
-    printf("Processing line: '%s'\n", line);
+int main() {
+    /* ==================== SEQUENCES PROCESSING ==================== */
 
-    // Iterate through the line to extract words
-    for (int i = 0; line[i] != '\0'; i++) {
-        if (isalnum(line[i])) {
-            // Add alphanumeric characters to the word
-            if (word_len < MAX_WORD_LENGTH) {
-                word[word_len++] = line[i];
+    // Open the sequences file
+    FILE *seq_file = fopen("sequences.txt", "r");
+    if (seq_file == NULL) {
+        perror("Error opening sequences.txt");
+        return 1;
+    }
+
+    // Read number of sequences from first line
+    int num_sequences;
+    fscanf(seq_file, "%d", &num_sequences);
+    fgetc(seq_file); // consume newline after the number
+
+    // Enforce maximum sequences limit
+    if (num_sequences > MAX_SEQUENCES) {
+        num_sequences = MAX_SEQUENCES;
+    }
+
+    // Array to store all sequences in lowercase
+    char sequences[MAX_SEQUENCES][MAX_SEQ_LEN + 1];
+
+    // Read each sequence line by line
+    for (int i = 0; i < num_sequences; i++) {
+        fgets(sequences[i], MAX_SEQ_LEN + 1, seq_file);
+        // Remove newline if present
+        char *newline = strchr(sequences[i], '\n');
+        if (newline) *newline = '\0';
+        // Convert sequence to lowercase for case-insensitive comparison
+        to_lower_case(sequences[i]);
+    }
+    fclose(seq_file);
+
+    /* ==================== TEXT PROCESSING ==================== */
+
+    // Open the text file to search through
+    FILE *text_file = fopen("text.txt", "r");
+    if (text_file == NULL) {
+        perror("Error opening text.txt");
+        return 1;
+    }
+
+    // Array to store all words found in the text (in lowercase)
+    char words[MAX_WORDS][MAX_WORD_LEN + 1];
+    int word_count = 0;
+    char line[MAX_LINE_LEN + 1];
+
+    // Read text file line by line until EOF or word limit reached
+    while (fgets(line, MAX_LINE_LEN + 1, text_file) && word_count < MAX_WORDS) {
+        int i = 0;
+        // Process each character in the line
+        while (line[i] != '\0' && word_count < MAX_WORDS) {
+            // Skip any non-word characters (punctuation, spaces etc.)
+            while (line[i] != '\0' && !is_word_char(line[i])) {
+                i++;
             }
-        } else {
-            if (word_len > 0) {
-                word[word_len] = '\0'; // Null-terminate the word
-                word_len = 0;  // Reset for the next word
 
-                // Debugging: Print word being checked
-                printf("Checking word: '%s'\n", word);
+            if (line[i] == '\0') break;
 
-                // Check each sequence
-                for (int j = 0; j < num_sequences; j++) {
-                    if (contains_sequence(word, sequences[j])) {
-                        // Print the sequence and word info (up to 10 occurrences per sequence)
-                        printf("Sequence '%s' found in word: '%s' (Position: %d)\n", sequences[j], word, *word_count);
-                    }
+            // Found start of a word - extract it
+            int j = 0;
+            while (is_word_char(line[i]) && j < MAX_WORD_LEN) {
+                // Store word in lowercase for case-insensitive comparison
+                words[word_count][j] = tolower(line[i]);
+                i++;
+                j++;
+            }
+            // Null-terminate the word
+            words[word_count][j] = '\0';
+            word_count++;
+        }
+    }
+    fclose(text_file);
+
+    /* ==================== SEQUENCE MATCHING ==================== */
+
+    // For each sequence, search through all words for matches
+    for (int s = 0; s < num_sequences; s++) {
+        printf("Sequence %s is contained in:\n", sequences[s]);
+        int matches_found = 0;
+
+        // Check each word (up to 10 matches per sequence)
+        for (int w = 0; w < word_count && matches_found < 10; w++) {
+            // Check if current word contains the sequence
+            if (strstr(words[w], sequences[s]) != NULL) {
+                /*
+                 * We found a match in lowercase words, but need to display
+                 * the original case. This requires re-reading the file to
+                 * find the original word at position w.
+                 * Note: This is inefficient but meets requirements.
+                 */
+                FILE *text_file_again = fopen("text.txt", "r");
+                if (text_file_again == NULL) {
+                    perror("Error reopening text.txt");
+                    return 1;
                 }
 
-                (*word_count)++; // Increment the word count
+                int current_word_pos = 0;
+                char original_word[MAX_WORD_LEN + 1];
+                int found = 0;
+
+                // Scan through file again to find the original word
+                while (fgets(line, MAX_LINE_LEN + 1, text_file_again) && !found) {
+                    int i = 0;
+                    while (line[i] != '\0' && !found) {
+                        // Skip non-word characters
+                        while (line[i] != '\0' && !is_word_char(line[i])) {
+                            i++;
+                        }
+
+                        if (line[i] == '\0') break;
+
+                        // Extract the next word
+                        int j = 0;
+                        char temp_word[MAX_WORD_LEN + 1];
+                        while (is_word_char(line[i]) && j < MAX_WORD_LEN) {
+                            temp_word[j] = line[i]; // Keep original case
+                            i++;
+                            j++;
+                        }
+                        temp_word[j] = '\0';
+
+                        current_word_pos++;
+                        // Check if this is the word we're looking for
+                        if (current_word_pos == w + 1) {
+                            strcpy(original_word, temp_word);
+                            found = 1;
+                        }
+                    }
+                }
+                fclose(text_file_again);
+
+                // Print the match with original case and position
+                printf("%s (position %d)\n", original_word, w + 1);
+                matches_found++;
             }
         }
-    }
-}
 
-// Function to count words in a line (helps with positioning words)
-int count_words_in_line(char *line) {
-    int count = 0;
-    int in_word = 0;
-
-    for (int i = 0; line[i] != '\0'; i++) {
-        if (isalnum(line[i])) {
-            if (!in_word) {
-                count++;
-                in_word = 1;
-            }
-        } else {
-            in_word = 0;
+        // If no matches found for this sequence
+        if (matches_found == 0) {
+            printf("No words found\n");
         }
     }
-
-    return count;
-}
-
-// Main function to read files and execute the search
-int main() {
-    FILE *sequences_file = fopen("sequences.txt", "r");
-    FILE *text_file = fopen("text.txt", "r");
-
-    if (!sequences_file || !text_file) {
-        printf("Error opening file(s).\n");
-        return 1;
-    }
-
-    int num_sequences;
-    fscanf(sequences_file, "%d\n", &num_sequences);
-
-    // Read all sequences from the sequences.txt file
-    char sequences[MAX_SEQUENCE_LENGTH][MAX_SEQUENCE_LENGTH + 1];
-    for (int i = 0; i < num_sequences; i++) {
-        fgets(sequences[i], MAX_SEQUENCE_LENGTH + 1, sequences_file);
-        sequences[i][strcspn(sequences[i], "\n")] = '\0'; // Remove newline
-    }
-
-    // Debugging: Print the sequences that were read
-    printf("Sequences to search for:\n");
-    for (int i = 0; i < num_sequences; i++) {
-        printf("'%s'\n", sequences[i]);
-    }
-
-    // Process the text file line by line
-    int word_count = 1; // Word count starting at 1
-    char line[201];
-    while (fgets(line, sizeof(line), text_file)) {
-        process_line(line, (const char **)sequences, num_sequences, &word_count);
-    }
-
-    fclose(sequences_file);
-    fclose(text_file);
 
     return 0;
 }
