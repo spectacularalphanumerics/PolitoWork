@@ -1,0 +1,226 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// -----------------------------
+// Struct definitions
+// -----------------------------
+
+typedef struct Student {
+    char name[50];
+    int id;
+    float grade;
+    struct Student* next;
+} Student_t;
+
+typedef struct {
+    Student_t* head;
+} Gradebook;
+
+
+// -----------------------------
+// Function declarations
+// -----------------------------
+
+void init_gradebook(Gradebook* gb);
+Student_t* create_student(const char* name, int id, float grade);
+void add_student(Gradebook* gb, const char* name, int id, float grade);
+Student_t* find_student(Gradebook* gb, int id);
+void update_grade(Gradebook* gb, int id, float new_grade);
+void remove_student(Gradebook* gb, int id);
+float average_grade(Gradebook* gb);
+Gradebook* extract_honor_roll(Gradebook* gb, float threshold);
+void print_gradebook(Gradebook* gb);
+void free_gradebook(Gradebook* gb);
+
+
+// -----------------------------
+// Function implementations
+// -----------------------------
+
+// Start with an empty gradebook
+void init_gradebook(Gradebook* gb) {
+    gb->head = NULL;
+}
+
+// Create a new student node and fill in details
+Student_t* create_student(const char* name, int id, float grade) {
+    Student_t* s = malloc(sizeof(Student_t));
+    if (!s) {
+        printf("Memory allocation failed!\n");
+        exit(1);
+    }
+
+    // Copy name safely
+    strncpy(s->name, name, sizeof(s->name) - 1);
+    s->name[sizeof(s->name) - 1] = '\0';
+
+    s->id = id;
+    s->grade = grade;
+    s->next = NULL;
+
+    return s;
+}
+
+// Add a student at the *end* of the list
+void add_student(Gradebook* gb, const char* name, int id, float grade) {
+    Student_t* new_student = create_student(name, id, grade);
+
+    if (gb->head == NULL) {
+        gb->head = new_student;
+        return;
+    }
+
+    Student_t* curr = gb->head;
+    while (curr->next != NULL)
+        curr = curr->next;
+
+    curr->next = new_student;
+}
+
+// Find a student by their ID
+Student_t* find_student(Gradebook* gb, int id) {
+    Student_t* curr = gb->head;
+
+    while (curr != NULL) {
+        if (curr->id == id)
+            return curr;
+        curr = curr->next;
+    }
+
+    return NULL;
+}
+
+// Update an existing student's grade
+void update_grade(Gradebook* gb, int id, float new_grade) {
+    Student_t* s = find_student(gb, id);
+    if (s) {
+        s->grade = new_grade;
+        printf("Updated %s (ID %d) to grade %.2f\n", s->name, id, new_grade);
+    } else {
+        printf("Student with ID %d not found.\n", id);
+    }
+}
+
+// Remove a student by their ID
+void remove_student(Gradebook* gb, int id) {
+    Student_t* curr = gb->head;
+    Student_t* prev = NULL;
+
+    while (curr != NULL) {
+        if (curr->id == id) {
+            if (prev == NULL)
+                gb->head = curr->next;
+            else
+                prev->next = curr->next;
+
+            printf("Removed student with ID %d (%s)\n", id, curr->name);
+            free(curr);
+            return;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+
+    printf("Student with ID %d not found.\n", id);
+}
+
+// Compute average grade
+float average_grade(Gradebook* gb) {
+    if (gb->head == NULL)
+        return 0.0f;
+
+    float sum = 0.0f;
+    int count = 0;
+
+    for (Student_t* curr = gb->head; curr != NULL; curr = curr->next) {
+        sum += curr->grade;
+        count++;
+    }
+
+    return (count > 0) ? (sum / count) : 0.0f;
+}
+
+// Build a new gradebook with students above a certain grade
+Gradebook* extract_honor_roll(Gradebook* gb, float threshold) {
+    Gradebook* honors = malloc(sizeof(Gradebook));
+    if (!honors) {
+        printf("Memory allocation failed for honor roll.\n");
+        exit(1);
+    }
+
+    init_gradebook(honors);
+
+    for (Student_t* curr = gb->head; curr != NULL; curr = curr->next) {
+        if (curr->grade >= threshold)
+            add_student(honors, curr->name, curr->id, curr->grade);
+    }
+
+    return honors;
+}
+
+// Print the whole gradebook nicely
+void print_gradebook(Gradebook* gb) {
+    if (gb->head == NULL) {
+        printf("(empty)\n");
+        return;
+    }
+
+    for (Student_t* curr = gb->head; curr != NULL; curr = curr->next)
+        printf("Name: %-12s | ID: %4d | Grade: %.2f\n", curr->name, curr->id, curr->grade);
+}
+
+// Free all memory used by the list
+void free_gradebook(Gradebook* gb) {
+    Student_t* curr = gb->head;
+    while (curr != NULL) {
+        Student_t* tmp = curr;
+        curr = curr->next;
+        free(tmp);
+    }
+    gb->head = NULL;
+}
+
+
+// -----------------------------
+// Main (demo)
+// -----------------------------
+
+int main() {
+    Gradebook gb;
+    init_gradebook(&gb);
+
+    add_student(&gb, "Alice", 1001, 91.5);
+    add_student(&gb, "Bob", 1002, 78.0);
+    add_student(&gb, "Charlie", 1003, 88.2);
+    add_student(&gb, "Diana", 1004, 95.4);
+
+    printf("All students:\n");
+    print_gradebook(&gb);
+
+    printf("\nAverage grade: %.2f\n", average_grade(&gb));
+
+    printf("\nUpdating Bob’s grade to 82.5...\n");
+    update_grade(&gb, 1002, 82.5);
+
+    printf("\nCurrent gradebook:\n");
+    print_gradebook(&gb);
+
+    printf("\nHonor roll (>= 85):\n");
+    Gradebook* honors = extract_honor_roll(&gb, 85.0);
+    print_gradebook(honors);
+
+    printf("\nRemoving Charlie (ID 1003)...\n");
+    remove_student(&gb, 1003);
+
+    printf("\nAfter removal:\n");
+    print_gradebook(&gb);
+
+    // cleanup
+    free_gradebook(&gb);
+    free_gradebook(honors);
+    free(honors);
+
+    return 0;
+}
